@@ -1,4 +1,9 @@
-[[_TOC_]]
+**TOC**
+
+1. [features](#planned-features)
+2. [examples](#examples)
+3. [usage](#usage)
+4. [other tools](#other-tools-i-have-looked-at)
 
 # ASCII_IMG - Advanced IMG to ASCII pipeline
 
