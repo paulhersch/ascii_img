@@ -1,3 +1,9 @@
+![OpenCV](https://img.shields.io/badge/opencv-%23white.svg?logo=opencv&logoColor=white)
+![Nix Flake](https://img.shields.io/badge/Nix_Flake-%235277C3?logo=nixos&logoColor=white)
+![Python: 3.12](https://img.shields.io/badge/Python_3.12-%233776AB?logo=python&logoColor=white)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
+
 **TOC**
 
 1. [features](#planned-features)
