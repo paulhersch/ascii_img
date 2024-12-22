@@ -32,7 +32,8 @@ video i also noticed how simple the processing actually is.
 - [x] brightness based characters (10 levels so far)
 - [x] truecolor escapes for colored pixels
 - [x] configurable kernel sizes
-- [ ] color binning with normalized brightness
+- [x] color binning
+- [x] properly deal with terminal fonts (they are not 1:1)
 - [ ] GUI/TUI with live reload
 - [ ] Automatic Kernel size selection (in CLI/TUI)
 - [ ] export as script for neovim dashboards(?)
@@ -41,12 +42,19 @@ If you feel like smth is missing open an issue.
 
 ## Examples
 
-```bash
-python -m ascii_img flower.jpg brightness,edge,color -d 15 -s --bg -t 150
-```
-
 ![Source Image](./examples/flower.jpg) 
+
+
+```bash
+python -m ascii_img flower.jpg brightness,edge,color -d 7 -s --bg -t 150
+```
 ![ASCII Version](./examples/flower_ascii.jpg) 
+
+```bash
+python -m ascii_img flower.jpg brightness,color,edge -d 9 -
+```
+![ASCII Version with highlighted edges](./examples/flower_ascii_edges.jpg) 
+
 ## Usage
 
 This is still in an early version, so the usage is not finalized, for now you have to use `-h`

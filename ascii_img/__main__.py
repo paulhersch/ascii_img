@@ -15,6 +15,15 @@ if __name__ == "__main__":
         + "of the program, like colors, edges, ...",
     )
     args.add_argument(
+        "--bg", help="Add ESC Sequence for black background", action="store_true"
+    )
+    args.add_argument(
+        "-s",
+        "--subtract-bg",
+        help="Try to extract the foreground of the image before creating the ascii art",
+        action="store_true",
+    )
+    args.add_argument(
         "-d",
         "--downscaling-factor",
         help="Factor by which the image should be downscaled, corresponds to the kernel size"
@@ -32,12 +41,24 @@ if __name__ == "__main__":
         type=int,
     )
     args.add_argument(
-        "--bg", help="Add ESC Sequence for black background", action="store_true"
+        "-b",
+        "--color-bins",
+        type=int,
+        help="Number of colorbins that are supposed to be found",
+        default=8,
     )
     args.add_argument(
-        "-s",
-        "--subtract-bg",
-        help="Tries to extract the foreground of the image before creating the ascii art",
+        "-e",
+        "--edge-color",
+        type=str,
+        help="Color assigned to detected edges (if they should be visible the edge action should"
+        + " be used AFTER colorizing), default=#000000",
+        default="#000000",
+    )
+    args.add_argument(
+        "--dont-adjust-to-font",
         action="store_true",
+        help="Don't remove half the image height to adjust to usual terminal font sizing. Recommended"
+        + " if you use a bitmap font that has the same height as width.",
     )
     main(args.parse_args())

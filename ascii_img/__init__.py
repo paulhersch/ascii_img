@@ -23,7 +23,7 @@ class CharacterIdx(Enum):
     BRIGHTNESS_9 = 13
 
 
-def split_img(img: np.ndarray, boxsize: int) -> np.ndarray:
+def split_img(img: np.ndarray, boxsize: int, proportion_thing: int) -> np.ndarray:
     shape = img.shape
     w = shape[1]
     h = shape[0]
@@ -38,7 +38,9 @@ def split_img(img: np.ndarray, boxsize: int) -> np.ndarray:
                 i * boxsize : (i + 1) * boxsize, j * boxsize : (j + 1) * boxsize, :
             ]
 
-    return ret
+    # only use every second chunk in y range because terminal fonts are kind of 1:2
+
+    return ret[range(0, ret.shape[0], proportion_thing), :, :]
 
 
 def char_for_normalised_rad(angle: float) -> int:
@@ -73,6 +75,7 @@ def edge_char_map(
     grayscale: np.ndarray,
     kernelsize: int,
     threshold: float,
+    edge_color_hex: str,
     # edge_chars: str,
 ) -> np.ndarray:
     """
@@ -80,6 +83,13 @@ def edge_char_map(
     and outputs a similar shaped ndarray with the character
     representing each edge/corner.
     """
+
+    # translate hex to rgb uint8 triplet
+    edge_color = [
+        int(edge_color_hex[1:3], 16),
+        int(edge_color_hex[3:5], 16),
+        int(edge_color_hex[5:7], 16),
+    ]
 
     """
     Sobel Filter analogous to the method showcased in Acerola Video
@@ -111,14 +121,9 @@ def edge_char_map(
         [
             [
                 (
-                    [
-                        char_for_normalised_rad(angles[i, j, 0] / math.pi),
-                        0,
-                        0,
-                        0,
-                    ]
+                    [char_for_normalised_rad(angles[i, j, 0] / math.pi)] + edge_color
                     if angles[i, j, 1] > threshold
-                    else [CharacterIdx.EMPTY.value, 0, 0, 0]
+                    else [CharacterIdx.EMPTY.value] + edge_color
                 )
                 for j in range(angles.shape[1])
             ]
@@ -136,13 +141,48 @@ def color(
     return np.array(
         [
             [
-                # over color channels
+                # average over color channels
+                # colors are BGR because opencv
                 [CharacterIdx.EMPTY.value]
                 + [int(np.average(chunks[i, j, :, :, k])) for k in range(2, -1, -1)]
                 for j in range(chunks.shape[1])
             ]
             for i in range(chunks.shape[0])
         ]
+    )
+
+
+def color_bin(chunks: np.ndarray, cluster_count: int) -> np.ndarray:
+
+    colors: np.ndarray = np.float32(
+        np.array(
+            [
+                [
+                    [int(np.average(chunks[i, j, :, :, k])) for k in range(2, -1, -1)]
+                    for j in range(chunks.shape[1])
+                ]
+                for i in range(chunks.shape[0])
+            ]
+        ).reshape(-1, 3)
+    )
+
+    _, label, center = cv2.kmeans(
+        colors,
+        cluster_count,
+        None,
+        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0),
+        10,
+        cv2.KMEANS_RANDOM_CENTERS,
+    )
+    colorcodes = np.uint8(center)
+    return np.reshape(
+        np.array(
+            [
+                np.insert(code, 0, CharacterIdx.EMPTY.value)
+                for code in colorcodes[label.flatten()]
+            ]
+        ),
+        (chunks.shape[0], chunks.shape[1], 4),
     )
 
 
@@ -183,7 +223,7 @@ def main(args) -> None:
         # TODO: epxand with proper watershed
         img = img * (thresholding_segment == 0)[:, :, None]
 
-    chunks = split_img(img, args.kernelsize)
+    chunks = split_img(img, args.kernelsize, 1 if args.dont_adjust_to_font else 2)
     brightness: np.ndarray = np.average(chunks, -1)  # average of rgb -> monochrome
 
     if args.edge_value is None:
@@ -196,12 +236,14 @@ def main(args) -> None:
     for a in args.actions.split(","):
         match a:
             case "edge":
-                edge_run = edge_char_map(brightness, args.kernelsize, args.edge_value)
+                edge_run = edge_char_map(
+                    brightness, args.kernelsize, args.edge_value, args.edge_color
+                )
                 # apply edge chars only
                 for i in range(color_and_char_map.shape[0]):
                     for j in range(color_and_char_map.shape[1]):
                         if edge_run[i, j, 0] != CharacterIdx.EMPTY.value:
-                            color_and_char_map[i, j, 0] = edge_run[i, j, 0]
+                            color_and_char_map[i, j] = edge_run[i, j]
 
             case "brightness":
                 brightness_run = character_selection(brightness)
@@ -216,11 +258,20 @@ def main(args) -> None:
                         color_and_char_map[i, j, 1] = color_run[i, j, 1]
                         color_and_char_map[i, j, 2] = color_run[i, j, 2]
                         color_and_char_map[i, j, 3] = color_run[i, j, 3]
+            case "color_bin":
+                color_run = color_bin(chunks, args.color_bins)
+                for i in range(color_and_char_map.shape[0]):
+                    for j in range(color_and_char_map.shape[1]):
+                        color_and_char_map[i, j, 1] = color_run[i, j, 1]
+                        color_and_char_map[i, j, 2] = color_run[i, j, 2]
+                        color_and_char_map[i, j, 3] = color_run[i, j, 3]
+            case _:
+                print(f"Method {a} not implemented!")
 
     if args.bg:
         print(set_bg([0, 0, 0]))
-    # translate numbers to characters
 
+    # translate numbers to characters
     character_map = {
         CharacterIdx.EMPTY.value: " ",
         CharacterIdx.ANGLE_0.value: "|",
@@ -250,4 +301,4 @@ def main(args) -> None:
         ]
     )
     for i, e in enumerate(ascii_art):
-        print("".join(np.repeat(e, 2)))
+        print("".join(e))
